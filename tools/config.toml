@@ -1,3 +1,14 @@
 # Override swc's config for alpine linux build image.
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-alpine-linux-musl-gcc"
+
+# Growing a WebAssembly memory detaches its ArrayBuffer, and detaching a buffer
+# that the bindings hold views of invalidates V8's ArrayBufferDetaching
+# protector, which slows typed-array code in the whole process for the rest of
+# its life (nodejs/node#67632).
+#
+# The allocator uses the initial memory before it grows the memory. With
+# 16 MiB of it, a source of 384 KB doesn't grow the memory, and one of 512 KB
+# does.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--initial-memory=16777216"]
