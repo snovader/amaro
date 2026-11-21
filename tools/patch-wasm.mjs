@@ -29,14 +29,23 @@ const { Buffer } = require('node:buffer');
 const bytes = Buffer.from('${base64}', 'base64');`,
 	);
 
-if (patchedJsFile === origJsFile) {
+// Have growth resize the memory's buffer in place instead of detaching it,
+// where the engine supports it. See tools/config.toml.
+const exportsAssignment = "module.exports.__wasm = wasm;";
+const resizableJsFile = patchedJsFile.replace(
+	exportsAssignment,
+	`${exportsAssignment}
+if (typeof wasm.memory.toResizableBuffer === 'function') wasm.memory.toResizableBuffer();`,
+);
+
+if (patchedJsFile === origJsFile || resizableJsFile === patchedJsFile) {
 	console.error(
 		"patch-wasm: wasm.js did not match the expected wasm-pack output",
 	);
 	process.exit(1);
 }
 
-await fs.writeFile(wasmJsPath, patchedJsFile);
+await fs.writeFile(wasmJsPath, resizableJsFile);
 await fs.unlink(rawWasmPath);
 
 const pkgJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8"));

@@ -5,10 +5,16 @@ linker = "aarch64-alpine-linux-musl-gcc"
 # Growing a WebAssembly memory detaches its ArrayBuffer, and detaching a buffer
 # that the bindings hold views of invalidates V8's ArrayBufferDetaching
 # protector, which slows typed-array code in the whole process for the rest of
-# its life (nodejs/node#67632).
+# its life (nodejs/node#67632). Two independent measures keep it intact:
 #
-# The allocator uses the initial memory before it grows the memory. With
-# 16 MiB of it, a source of 384 KB doesn't grow the memory, and one of 512 KB
-# does.
+# - 16 MiB of initial memory, which the allocator uses before it grows the
+#   memory. A source of 384 KB doesn't grow the memory, and one of 512 KB
+#   does.
+# - A declared maximum, which `WebAssembly.Memory.prototype.toResizableBuffer()`
+#   requires. tools/patch-wasm.mjs has the bindings call it, so that growing
+#   resizes the buffer in place instead of detaching it.
 [target.wasm32-unknown-unknown]
-rustflags = ["-C", "link-arg=--initial-memory=16777216"]
+rustflags = [
+    "-C", "link-arg=--initial-memory=16777216",
+    "-C", "link-arg=--max-memory=4294967296",
+]
